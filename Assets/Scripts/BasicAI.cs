@@ -2,37 +2,50 @@
 using System.Collections;
 
 [ExecuteInEditMode]
-public class BasicAI : MonoBehaviour {
+public class BasicAI : MonoBehaviour
+{
     NavMeshAgent navmeshagent;
-    public bool ShowFov;
+    Transform trans;
     GameObject player;
+
+    public GameObject eyes;
+    public bool ShowFov;
+
     public float fieldOfVision;
     public float rangeOfVision;
-    public GameObject eyes;
     public float shootDelay;
+    public float hitPoints;
+    public float currHitPoints;
+
     public enum EnemyState
     {
         DEAD,
         POSSESSED,
         NEUTRAL
-    }
-    PlayerScript thisPlayerScript;
-    public float hitPoints;
-    public float currHitPoints;
+    }    
+    
     public EnemyState currEnemyState;
     private GunHandler _gunHandler;
-	// Use this for initialization
-	void Start () {
+    PlayerScript thisPlayerScript;
+
+    // Use this for initialization
+    void Start ()
+    {
         //Find the player
         player = GameObject.FindWithTag("Player");
-        navmeshagent = GetComponent<NavMeshAgent>();
-        currHitPoints = hitPoints;
+
+        trans = transform;
+        navmeshagent = GetComponent<NavMeshAgent>();        
         _gunHandler = GetComponent<GunHandler>();
+        thisPlayerScript = GetComponent<PlayerScript>();
+
         if (player == null)
         {
             return;
-        }
-        thisPlayerScript = GetComponent<PlayerScript>();
+        }        
+
+        currHitPoints = hitPoints;
+
         InvokeRepeating("CheckStatus", 0, 1.0f);
         InvokeRepeating("ShootAtPlayer", 0, shootDelay);
 	}
@@ -64,7 +77,7 @@ public class BasicAI : MonoBehaviour {
     }
     void SpawnPlayerOnDeath()
     {
-        thisPlayerScript.previousBody.transform.position = transform.position;
+        thisPlayerScript.previousBody.transform.position = trans.position;
         thisPlayerScript.previousBody.SetActive(true);
     }
     void Death()
@@ -96,10 +109,10 @@ public class BasicAI : MonoBehaviour {
                 {
                     //Debug.Log("CanSee");
                     navmeshagent.updateRotation = false;
-                    Vector3 dir = player.transform.position - transform.position;
+                    Vector3 dir = player.transform.position - trans.position;
                     dir.y = 0;
                     Quaternion rotation = Quaternion.LookRotation(dir);
-                    transform.rotation = Quaternion.Slerp(transform.rotation, rotation, 0.2f);
+                    trans.rotation = Quaternion.Slerp(trans.rotation, rotation, 0.2f);
 
                 }
             }
@@ -133,13 +146,13 @@ public class BasicAI : MonoBehaviour {
     void FieldOfVisionDisplay(float fov, GameObject eyePos, float range)
     {
         Vector3 targetDir = player.transform.position - eyePos.transform.position;
-        Vector3 forward = transform.forward;
-        Vector3 leftRayRotation = Quaternion.AngleAxis(-fov*0.5f, transform.up) * transform.forward;
-        Vector3 rightRayRotation = Quaternion.AngleAxis(fov*0.5f, transform.up) * transform.forward;
+        Vector3 forward = trans.forward;
+        Vector3 leftRayRotation = Quaternion.AngleAxis(-fov*0.5f, trans.up) * trans.forward;
+        Vector3 rightRayRotation = Quaternion.AngleAxis(fov*0.5f, trans.up) * trans.forward;
 
-        Debug.DrawRay(transform.position, forward.normalized * range, Color.red);
-        Debug.DrawRay(transform.position, leftRayRotation.normalized * range, Color.red);
-        Debug.DrawRay(transform.position, rightRayRotation.normalized * range, Color.red);
+        Debug.DrawRay(trans.position, forward.normalized * range, Color.red);
+        Debug.DrawRay(trans.position, leftRayRotation.normalized * range, Color.red);
+        Debug.DrawRay(trans.position, rightRayRotation.normalized * range, Color.red);
 
 
     }
@@ -149,7 +162,7 @@ public class BasicAI : MonoBehaviour {
 
         //find which direction is the player from this AI
         Vector3 targetDir = player.transform.position - eyePos.transform.position;
-        Vector3 forward = transform.forward;
+        Vector3 forward = trans.forward;
 
         //check against where the ai is facing and what the angle is between that and the player's position
         float angle = Vector3.Angle(targetDir, forward);
