@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class MainMenu : MonoBehaviour
 {
@@ -31,7 +32,7 @@ public class MainMenu : MonoBehaviour
     // LEVEL SELECTION - SCENE //
     public void StoryMode_Button()
     {
-        //SceneManager.LoadScene("Level1");
+        SceneManager.LoadScene("TestScene1");
     }
 
     public void SelectALevel_Button()
