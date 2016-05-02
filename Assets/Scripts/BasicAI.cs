@@ -229,5 +229,21 @@ public class BasicAI : MonoBehaviour
         {
             RotateToPlayer();
         }
+
+        // The AI's Current-State
+        switch (currEnemyState)
+        {
+            case EnemyState.NEUTRAL:
+
+                break;
+
+            case EnemyState.POSSESSED:
+
+                break;
+
+            case EnemyState.DEAD:
+
+                break;
+        }
     }
 }
