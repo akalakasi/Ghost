@@ -32,7 +32,7 @@ public class MainMenu : MonoBehaviour
     // LEVEL SELECTION - SCENE //
     public void StoryMode_Button()
     {
-        SceneManager.LoadScene("TestScene1");
+        SceneManager.LoadScene("TestScene2");
     }
 
     public void SelectALevel_Button()

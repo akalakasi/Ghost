@@ -8,8 +8,8 @@ public class BasicAI : MonoBehaviour
     Transform trans;
     GameObject player;
 
-    public GameObject eyes;
-    public bool ShowFov;
+    [SerializeField] GameObject eyes;
+    [SerializeField] bool ShowFov;
 
     public float fieldOfVision;
     public float rangeOfVision;
@@ -19,13 +19,18 @@ public class BasicAI : MonoBehaviour
 
     public enum EnemyState
     {
-        DEAD,
+        IDLE,
+        WALK,
+        AGGRESSIVE,
         POSSESSED,
-        NEUTRAL
+        DEAD,
     }    
     
     public EnemyState currEnemyState;
-    private GunHandler _gunHandler;
+
+    bool _dead;
+
+    GunHandler _gunHandler;
     PlayerScript thisPlayerScript;
 
     // Use this for initialization
@@ -49,6 +54,7 @@ public class BasicAI : MonoBehaviour
         InvokeRepeating("CheckStatus", 0, 1.0f);
         InvokeRepeating("ShootAtPlayer", 0, shootDelay);
 	}
+
     void CheckStatus()
     {
         switch (thisPlayerScript.currentPState)
@@ -61,10 +67,7 @@ public class BasicAI : MonoBehaviour
                     Invoke("Death", 1.5f);
                 }
                 break;
-            case PlayerScript.PossesState.Neutral:
-                break;
-            case PlayerScript.PossesState.Player:
-                break;
+ 
             case PlayerScript.PossesState.Possessed:
                 if(thisPlayerScript.currHP <= 0)
                 {
@@ -75,15 +78,18 @@ public class BasicAI : MonoBehaviour
                 break;
         }
     }
+
     void SpawnPlayerOnDeath()
     {
         thisPlayerScript.previousBody.transform.position = trans.position;
         thisPlayerScript.previousBody.SetActive(true);
     }
+
     void Death()
     {
         Destroy(this.gameObject);
     }
+
     void ShootAtPlayer()
     {
         if (DistanceChecker(rangeOfVision, eyes))
@@ -97,6 +103,7 @@ public class BasicAI : MonoBehaviour
             }
         }
     }
+
     void RotateToPlayer()
     {
         if(DistanceChecker(rangeOfVision, eyes))
@@ -112,8 +119,7 @@ public class BasicAI : MonoBehaviour
                     Vector3 dir = player.transform.position - trans.position;
                     dir.y = 0;
                     Quaternion rotation = Quaternion.LookRotation(dir);
-                    trans.rotation = Quaternion.Slerp(trans.rotation, rotation, 0.2f);
-
+                    trans.rotation = Quaternion.Slerp(trans.rotation, rotation, 0.9f * Time.deltaTime);
                 }
             }
         }
@@ -123,9 +129,9 @@ public class BasicAI : MonoBehaviour
         }
        
     }
+
     bool DistanceChecker(float range, GameObject eyePos)
     {
-        bool isNear = false;
         //find which direction is the player from this AI
         Vector3 heading = player.transform.position - eyePos.transform.position;
 
@@ -133,33 +139,22 @@ public class BasicAI : MonoBehaviour
         float sqrDist = heading.magnitude;
 
         //check if the distance is within the range
-        if (sqrDist < range * range)
-        {
-            isNear = true;
-        }
-        else
-        {
-            isNear = false;
-        }
-        return isNear;
+        return (sqrDist < range * range) ? true : false;
     }
+
     void FieldOfVisionDisplay(float fov, GameObject eyePos, float range)
     {
-        Vector3 targetDir = player.transform.position - eyePos.transform.position;
         Vector3 forward = trans.forward;
-        Vector3 leftRayRotation = Quaternion.AngleAxis(-fov*0.5f, trans.up) * trans.forward;
-        Vector3 rightRayRotation = Quaternion.AngleAxis(fov*0.5f, trans.up) * trans.forward;
+        Vector3 leftRayRotation = Quaternion.AngleAxis(-fov*0.5f, trans.up) * forward;
+        Vector3 rightRayRotation = Quaternion.AngleAxis(fov*0.5f, trans.up) * forward;
 
         Debug.DrawRay(trans.position, forward.normalized * range, Color.red);
         Debug.DrawRay(trans.position, leftRayRotation.normalized * range, Color.red);
         Debug.DrawRay(trans.position, rightRayRotation.normalized * range, Color.red);
-
-
     }
+
 	bool FieldOfVision(float fov, GameObject eyePos)
     {
-        bool withinFov;
-
         //find which direction is the player from this AI
         Vector3 targetDir = player.transform.position - eyePos.transform.position;
         Vector3 forward = trans.forward;
@@ -168,23 +163,16 @@ public class BasicAI : MonoBehaviour
         float angle = Vector3.Angle(targetDir, forward);
 
         //is that angle within the field of vision? "fov"
-        if (angle < fov * 0.5f)
-        {
-            withinFov = true;
-        }
-        else
-        {
-            withinFov = false;
-        }
-        return withinFov;
+        return angle < fov * 0.5f ? true : false;
     }
+
     bool ObstacleChecker(GameObject eyePos)
     {
         bool canSee = false;
-        Ray ray = new Ray(eyePos.transform.position, player.transform.position);
         
         Vector3 targetDir = (player.transform.position + Vector3.up*0.5f) - eyePos.transform.position;
         RaycastHit hit;
+
         if (Physics.Raycast(eyePos.transform.position, targetDir.normalized, out hit, rangeOfVision))
         {
             //Debug.DrawRay(transform.position, targetDir.normalized, Color.green);
@@ -214,36 +202,19 @@ public class BasicAI : MonoBehaviour
         }
         return canSee;
     }
-	// Update is called once per frame
-	void LateUpdate () {
 
+	void LateUpdate ()
+    {
         //For Game Designers :)
         if (ShowFov)
         {
             FieldOfVisionDisplay(fieldOfVision, eyes, rangeOfVision);
         }
         
-
         //Well, rotate this to face the player.
         if(currEnemyState != EnemyState.DEAD)
         {
             RotateToPlayer();
-        }
-
-        // The AI's Current-State
-        switch (currEnemyState)
-        {
-            case EnemyState.NEUTRAL:
-
-                break;
-
-            case EnemyState.POSSESSED:
-
-                break;
-
-            case EnemyState.DEAD:
-
-                break;
         }
     }
 }
