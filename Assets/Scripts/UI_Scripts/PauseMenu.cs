@@ -15,28 +15,34 @@ public class PauseMenu : MonoBehaviour
     void Update()
     {
         // Pause the Game
-        if (Input.GetKeyDown(KeyCode.Escape))
+        if (Input.GetButtonDown("Cancel"))
         {
             if (!pause)
             {
-                pause = true;
-
-                pauseScreen_Canvas.alpha = 1f;
-                pauseScreen_Canvas.blocksRaycasts = true;
-
-                //Open the Pause-Screen
-                options_Canvas.alpha = 1;
-                options_Canvas.interactable = true;
-                options_Canvas.blocksRaycasts = true;
-
-                Time.timeScale = 0;
-                AudioListener.volume = 0.5f;
-
-                // Enable Cursor
-                Cursor.visible = true;
-                Cursor.lockState = CursorLockMode.None;
+                PauseGame();
             }
         }
+    }
+
+    void PauseGame()
+    {
+        pause = true;
+
+        pauseScreen_Canvas.alpha = 1f;
+        pauseScreen_Canvas.interactable = true;
+        pauseScreen_Canvas.blocksRaycasts = true;
+
+        //Open the Pause-Screen
+        options_Canvas.alpha = 1;
+        options_Canvas.interactable = true;
+        options_Canvas.blocksRaycasts = true;
+
+        Time.timeScale = 0;
+        AudioListener.volume = 0.5f;
+
+        // Enable Cursor
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
     }
 
     public void ResumeButton()
@@ -44,6 +50,7 @@ public class PauseMenu : MonoBehaviour
         pause = false;
 
         pauseScreen_Canvas.alpha = 0;
+        pauseScreen_Canvas.interactable = false;
         pauseScreen_Canvas.blocksRaycasts = false;
 
         // Close the Pause-Screen
@@ -90,7 +97,7 @@ public class PauseMenu : MonoBehaviour
 
     public void GraphicsBackButton()
     {
-        SwitchCanvas(audio_Canvas, settings_Canvas);
+        SwitchCanvas(graphics_Canvas, settings_Canvas);
     }
 
     public void AudioButton()
