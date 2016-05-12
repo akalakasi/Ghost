@@ -4,9 +4,10 @@ using System.Collections;
 [ExecuteInEditMode]
 public class BasicAI : MonoBehaviour
 {
-    NavMeshAgent navmeshagent;
-    Transform trans;
-    GameObject player;
+    protected NavMeshAgent navmeshagent;
+    protected Animator anim;
+    protected Transform trans;
+    protected GameObject player;
 
     [SerializeField] GameObject eyes;
     [SerializeField] bool ShowFov;
@@ -17,24 +18,24 @@ public class BasicAI : MonoBehaviour
     public float hitPoints;
     public float currHitPoints;
 
-    public enum EnemyState
+    protected enum AIstate
     {
         IDLE,
         WALK,
         AGGRESSIVE,
         POSSESSED,
         DEAD,
-    }    
-    
-    public EnemyState currEnemyState;
+    }
 
-    bool _dead;
+    protected AIstate currAIstate;
+    protected bool _newAction;
+    protected bool _dead;
 
     GunHandler _gunHandler;
     PlayerScript thisPlayerScript;
 
     // Use this for initialization
-    void Start ()
+    protected virtual void Start()
     {
         //Find the player
         player = GameObject.FindWithTag("Player");
@@ -50,12 +51,12 @@ public class BasicAI : MonoBehaviour
         }        
 
         currHitPoints = hitPoints;
-
+        
         InvokeRepeating("CheckStatus", 0, 1.0f);
         InvokeRepeating("ShootAtPlayer", 0, shootDelay);
 	}
 
-    void CheckStatus()
+    protected void CheckStatus()
     {
         switch (thisPlayerScript.currentPState)
         {
@@ -63,7 +64,7 @@ public class BasicAI : MonoBehaviour
                 if (currHitPoints <= 0)
                 {
                     currHitPoints = 0;
-                    currEnemyState = EnemyState.DEAD;
+                    currAIstate = AIstate.DEAD;
                     Invoke("Death", 1.5f);
                 }
                 break;
@@ -72,7 +73,7 @@ public class BasicAI : MonoBehaviour
                 if(thisPlayerScript.currHP <= 0)
                 {
                     thisPlayerScript.currHP = 0;
-                    currEnemyState = EnemyState.DEAD;
+                    currAIstate = AIstate.DEAD;
                     Invoke("SpawnPlayerOnDeath", 0.5f);
                 }
                 break;
@@ -127,7 +128,7 @@ public class BasicAI : MonoBehaviour
         {
             navmeshagent.updateRotation = true;
         }
-       
+
     }
 
     bool DistanceChecker(float range, GameObject eyePos)
@@ -212,7 +213,7 @@ public class BasicAI : MonoBehaviour
         }
         
         //Well, rotate this to face the player.
-        if(currEnemyState != EnemyState.DEAD)
+        if(currAIstate != AIstate.DEAD)
         {
             RotateToPlayer();
         }
