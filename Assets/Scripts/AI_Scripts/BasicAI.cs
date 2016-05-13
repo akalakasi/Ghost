@@ -8,8 +8,11 @@ public class BasicAI : MonoBehaviour
     protected Animator anim;
     protected Transform trans;
     protected GameObject player;
+ 
+    protected Vector3 sightRadius;
+    protected float distance;
 
-    [SerializeField] GameObject eyes;
+    [SerializeField] protected GameObject eyes;
     [SerializeField] bool ShowFov;
 
     public float fieldOfVision;
@@ -18,17 +21,20 @@ public class BasicAI : MonoBehaviour
     public float hitPoints;
     public float currHitPoints;
 
-    protected enum AIstate
+    public enum AIstate
     {
         IDLE,
+        TURNLEFT,
+        TURNRIGHT,
         WALK,
         AGGRESSIVE,
+        ALERT,
         POSSESSED,
         DEAD,
     }
 
-    protected AIstate currAIstate;
-    protected bool _newAction;
+    public AIstate currAIstate;
+    protected bool _playerSpotted;
     protected bool _dead;
 
     GunHandler _gunHandler;
@@ -210,12 +216,6 @@ public class BasicAI : MonoBehaviour
         if (ShowFov)
         {
             FieldOfVisionDisplay(fieldOfVision, eyes, rangeOfVision);
-        }
-        
-        //Well, rotate this to face the player.
-        if(currAIstate != AIstate.DEAD)
-        {
-            RotateToPlayer();
         }
     }
 }
