@@ -3,94 +3,147 @@ using UnityEngine.SceneManagement;
 using UnityStandardAssets.Characters.FirstPerson;
 using System.Collections;
 
-public class PlayerScript : MonoBehaviour {
+public class PlayerScript : Stats
+{
+    Transform _trans;
+    Animation _anim;
+
+    public GameObject possessedBody;
+    public WeaponBag weapons;
+    public Transform weaponBagPos;
+
     public enum PossesState
     {
-        Enemy,
-        Possessed,
-        Player,
-        Neutral,
-        Dead
+        NOT_POSSESSING,
+        POSSESSING,
+        DEAD
     }
-    public GameObject previousBody;
-    public float HP;
-    public float currHP;
+
     public PossesState currentPState;
-    private GunHandler _gunHandler;
-	// Use this for initialization
-	void Start () {
-        _gunHandler = GetComponent<GunHandler>();
-        currHP = HP;
-        InvokeRepeating("CheckForDeath", 1.0f, 1.0f);
-    }
-    void CheckForDeath()
+
+    void Start ()
     {
-        if(currHP <= 0)
-        {
-            currHP = 0;
-            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-        }
-        
+        _trans = transform;
+        _anim = GetComponentInChildren<Animation>();        
+
+        StartCoroutine("CheckStatus");
     }
-    
+
+    IEnumerator CheckStatus()
+    {
+        while (currentPState != PossesState.DEAD)
+        {
+            if (weapons != null)
+            {
+                if (Input.GetMouseButtonDown(0))
+                {
+                    _anim.Play("fire");
+                    weapons.Attack();
+                }
+
+                if (Input.GetKeyDown(KeyCode.R))
+                {
+                    // Reload Firearm
+                    _anim.Play("reloadfull");
+                    weapons.Reload();
+                }
+
+                // Switch Weapons
+                if (Input.GetAxis("Mouse ScrollWheel") > 0)
+                {
+                    weapons.SwitchWeapon(1);
+                }
+                else if (Input.GetAxis("Mouse ScrollWheel") < 0)
+                {
+                    weapons.SwitchWeapon(-1);
+                }
+            }
+
+            if (Input.GetKeyDown(KeyCode.E))
+            {
+                Possession();
+            }            
+
+            // Dead
+            if (currHP <= 0)
+            {
+                currHP = 0;
+                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            }
+
+            yield return null;
+        }
+    }
+
     void Possession()
     {
         RaycastHit hit;
-        if (Physics.Raycast(transform.position + Vector3.up * 0.5f, transform.forward, out hit))
+        if (Physics.Raycast(_trans.position + Vector3.up * 0.5f, _trans.forward, out hit))
         {
 
             //Collider target = hit.collider; // What did I hit?
             //float distance = hit.distance; // How far out?
             //Vector3 location = hit.point; // Where did I make impact?
-            GameObject targetGameObject = hit.collider.gameObject; // What's the GameObject?
-            Debug.Log(targetGameObject);
-            PlayerScript _hitPlayerScript = hit.collider.gameObject.GetComponent<PlayerScript>();
-            BasicAI _hitBasicAI = hit.collider.gameObject.GetComponent<BasicAI>();
 
-            if (_hitPlayerScript != null)
+            // What's the GameObject?
+            GameObject targetGameObject = hit.collider.gameObject;
+            //Debug.Log(targetGameObject);
+           
+            if (!targetGameObject.CompareTag("AI"))
             {
-                switch (_hitPlayerScript.currentPState)
-                {
-                    case PossesState.Enemy:
-                        _hitPlayerScript.previousBody = this.gameObject;
-                        _hitPlayerScript.GetComponent<CharacterController>().enabled = true;
-                        _hitPlayerScript.GetComponent<AudioSource>().enabled = true;
-                        _hitPlayerScript.GetComponent<FirstPersonController>().enabled = true;
-                        _hitPlayerScript.GetComponent<BasicAI>().enabled = false;
-                        _hitPlayerScript.currentPState = PossesState.Possessed;
-                        _hitPlayerScript.gameObject.transform.GetChild(0).gameObject.SetActive(true);
-                        _hitPlayerScript.gameObject.transform.GetChild(1).gameObject.SetActive(false);
-                        transform.position = Vector3.Slerp(transform.position, _hitPlayerScript.gameObject.transform.position, 0.1f);
-                        transform.gameObject.SetActive(false);
-                        break;
-                    case PossesState.Neutral:
-                        break;
-                }
+                return;
             }
+            else if (targetGameObject.CompareTag("AI"))
+            {        
+                AI _ai = targetGameObject.GetComponent<AI>();
 
+                if (_ai != null)
+                {
+                    // Make sure AI isn't dead
+                    if (_ai.currAIstate != AI.AIstate.DEAD)
+                    {
+                        // Check if it is the current AI you're possessing
+                        if (possessedBody != _ai.gameObject)
+                        {
+                            // Leave your last possessed body and enter a new body
+                            if (possessedBody)
+                            {                                                                                        
+                                possessedBody.SetActive(true);
+                                possessedBody.transform.SetParent(null);
+
+                                // Give Back old weapons to previous body        
+                                AI _previousAI = possessedBody.GetComponent<AI>();
+                                weapons.transform.SetParent(_previousAI.weaponBagPos);
+                                weapons.transform.position = _previousAI.weaponBagPos.position;
+                                weapons.transform.rotation = weapons.transform.parent.rotation;
+                                _previousAI.UnPossessAI();
+                            }
+                            possessedBody = _ai.gameObject;
+
+                            // AI becomes possessed                
+                            _ai.PossessAI();
+
+                            // Player possesses AI
+                            currentPState = PossesState.POSSESSING;
+
+                            // Go to AI's position                        
+                            _trans.position = possessedBody.transform.position;
+                            _trans.rotation = possessedBody.transform.rotation;    
+                            _ai.transform.SetParent(_trans);
+                            _ai.gameObject.SetActive(false);                            
+
+                            // Acquire all of the AI's weapons   
+                            weapons = _ai.weapons;
+                            weapons.transform.SetParent(weaponBagPos);
+                            weapons.transform.position = weaponBagPos.position;
+                            weapons.transform.rotation = weapons.transform.parent.rotation;
+
+                            // Make sure that the AIs do not know you're the player
+                            tag = "Untagged";
+                        }
+                    }
+                }
+            }                                     
         }
-    }
-	
-	// Update is called once per frame
-	void Update () {
-        switch (currentPState)
-        {
-            case PossesState.Player:
-                if (Input.GetMouseButtonDown(0))
-                {
-                    _gunHandler.Fire();
-                }
-                if (Input.GetKeyDown(KeyCode.E))
-                {
-                    Possession();
-                }
-                break;
-            case PossesState.Possessed:
-                if (Input.GetMouseButtonDown(0))
-                {
-                    _gunHandler.Fire();
-                }
-                break;
-        }
-	}
+    }	   
 }

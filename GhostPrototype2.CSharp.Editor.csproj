@@ -104,6 +104,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Editor\CrossPlatformInput\CrossPlatformInputInitialize.cs" />
+    <Compile Include="Assets\Scripts\AI_Scripts\Editor\BehaviourEditor.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Placeholders\Arms\Credit.txt" />

@@ -1,47 +1,55 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
-using System.Collections;
 
 public class Weapon_UI : MonoBehaviour
 {
-    [SerializeField] Image weaponImage;
-    [SerializeField] CanvasGroup ammoUI;
+    [SerializeField] PlayerScript player;
+    [SerializeField] CanvasGroup weaponCanvasGroup;
+    [SerializeField] CanvasGroup ammoCanvasGroup;
+    [SerializeField] Image weaponImage;    
     [SerializeField] Text currAmmoText;
-    [SerializeField] Text maxAmmoText;
-
-    int _currAmmo;
-    int _maxAmmo;
+    [SerializeField] Text totalAmmoText;
 
 	void LateUpdate ()
-    {
-        // Display the weapon-ammo text UI 
-        currAmmoText.text = _currAmmo.ToString();
-        maxAmmoText.text = _maxAmmo.ToString();
+    {        
+        if (player != null)
+        {
+            if (player.weapons != null)
+            {
+                // Show Weapon_UI
+                weaponCanvasGroup.alpha = 1;
+
+                if (player.weapons.currentWeapon.IsFireArm)
+                {
+                    // Display weapon-ammo UI 
+                    // if it is a non-melee weapon
+                    ammoCanvasGroup.alpha = 1;
+
+                    // Display the weapon-ammo text UI 
+                    currAmmoText.text = player.weapons.currentWeapon.WeaponCurrentAmmo().ToString();
+                    totalAmmoText.text = player.weapons.currentWeapon.WeaponTotalAmmo().ToString();
+                }
+                else if (!player.weapons.currentWeapon.IsFireArm)
+                {
+                    // Hide the ammo UI
+                    // if it is a melee weapon
+                    ammoCanvasGroup.alpha = 0;
+
+                    currAmmoText.text = System.String.Empty;
+                    totalAmmoText.text = System.String.Empty;
+                }
+            }
+            else
+            {
+                // Hide Weapon_UI
+                weaponCanvasGroup.alpha = 0;
+            }
+        }
 	}
 
-    void NewWeaponUI(Sprite new_WeaponSprite, bool _isMelee, int _newCurrAmmo, int _newMaxAmmo)
+    void NewWeaponUI(Sprite new_WeaponSprite)
     {
-        // Update the latest weapon-in-use in the UI
+        // Update the current weapon in the UI
         weaponImage.sprite = new_WeaponSprite;
-
-        // Check if it is a melee-weapon
-        if (!_isMelee)
-        {
-            // Display weapon-ammo UI 
-            // if it is a non-melee weapon
-            _currAmmo = _newCurrAmmo;
-            _maxAmmo = _newMaxAmmo;
-
-            ammoUI.alpha = 1;
-        }
-        else
-        {
-            // Hide the ammo UI
-            // if it is a melee weapon
-            ammoUI.alpha = 0;
-
-            _currAmmo = 0;
-            _maxAmmo = 0;
-        }
     }
 }

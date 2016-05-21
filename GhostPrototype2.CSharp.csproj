@@ -69,14 +69,23 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Assets\Scripts\BasicAI.cs" />
+    <Compile Include="Assets\Scripts\AI_Scripts\AI.cs" />
+    <Compile Include="Assets\Scripts\AI_Scripts\Behaviour.cs" />
+    <Compile Include="Assets\Scripts\AI_Scripts\Thug.cs" />
     <Compile Include="Assets\Scripts\DestroySoundClip.cs" />
-    <Compile Include="Assets\Scripts\GunHandler.cs" />
     <Compile Include="Assets\Scripts\PlayerScript.cs" />
+    <Compile Include="Assets\Scripts\Stats.cs" />
+    <Compile Include="Assets\Scripts\UI_Scripts\HP_UI.cs" />
     <Compile Include="Assets\Scripts\UI_Scripts\MainMenu.cs" />
     <Compile Include="Assets\Scripts\UI_Scripts\PauseMenu.cs" />
+    <Compile Include="Assets\Scripts\UI_Scripts\PossessedHost_UI.cs" />
     <Compile Include="Assets\Scripts\UI_Scripts\ResolutionSetting.cs" />
     <Compile Include="Assets\Scripts\UI_Scripts\SoundSetting.cs" />
+    <Compile Include="Assets\Scripts\UI_Scripts\Weapon_UI.cs" />
+    <Compile Include="Assets\Scripts\Weapon_Scripts\Firearm.cs" />
+    <Compile Include="Assets\Scripts\Weapon_Scripts\Pistol.cs" />
+    <Compile Include="Assets\Scripts\Weapon_Scripts\Weapon.cs" />
+    <Compile Include="Assets\Scripts\Weapon_Scripts\WeaponBag.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Placeholders\Arms\Credit.txt" />
