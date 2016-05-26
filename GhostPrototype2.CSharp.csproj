@@ -70,7 +70,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\AI_Scripts\AI.cs" />
-    <Compile Include="Assets\Scripts\AI_Scripts\Behaviour.cs" />
+    <Compile Include="Assets\Scripts\AI_Scripts\Civilian.cs" />
     <Compile Include="Assets\Scripts\AI_Scripts\Thug.cs" />
     <Compile Include="Assets\Scripts\DestroySoundClip.cs" />
     <Compile Include="Assets\Scripts\PlayerScript.cs" />

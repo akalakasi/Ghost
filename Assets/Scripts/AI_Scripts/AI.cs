@@ -1,6 +1,5 @@
 ﻿using UnityEngine;
 using System.Collections;
-using System.Collections.Generic;
 
 [ExecuteInEditMode]
 public class AI : Stats
@@ -16,12 +15,13 @@ public class AI : Stats
     protected Vector3 _targetDir;
     protected float _distance;
 
-    [SerializeField] protected GameObject eyes;
+    [Space(10, order = 0)]
+    [Header("Sight Vision", order = 1)]
+    [Space(5, order = 2)]
+    [SerializeField] GameObject eyes;
     [SerializeField] bool ShowFov;
-
-    public float fieldOfVision;
-    public float rangeOfVision;
-    public float shootDelay;
+    [SerializeField] float fieldOfVision;
+    [SerializeField] float rangeOfVision;
 
     public enum AIstate
     {
@@ -35,20 +35,21 @@ public class AI : Stats
         DEAD,
     }
 
+    [Space(10, order = 0)]
+    [Header("Behaviours", order = 1)]
+    [Space(5, order = 2)]
     public AIstate currAIstate;
-    
+
+    [Space(10, order = 0)]
+    [Header("Weapons", order = 1)]
+    [Space(5, order = 2)]
     public WeaponBag weapons;
     public Transform weaponBagPos;
-    [SerializeField] protected Transform[] waypoints;
-    [SerializeField] protected AIstate[] Idle_Behaviours;
-    [SerializeField] protected AIstate[] Alert_Behaviours;
-    [SerializeField] protected AIstate[] Aggressive_Behaviours;
 
+    protected bool _stareAtPlayer;
+    protected bool _possessed;
     protected bool _spottedPlayer;
     protected bool _dead;
-
-    Weapon _currWeapon;
-    int _selectedWeapon;
 
     // Use this for initialization
     protected void Setup()
@@ -66,6 +67,7 @@ public class AI : Stats
         }                
 
         StartCoroutine("CheckStatus");
+        StartCoroutine("StareAtPlayer");
         InvokeRepeating("FindPlayer", 1, 0.2f);
     }
 
@@ -135,9 +137,29 @@ public class AI : Stats
         }
     }
 
+    protected IEnumerator StareAtPlayer()
+    {
+        while (_stareAtPlayer)
+        {
+            // Stare at player            
+            _sightRadius.y = 0;
+            Quaternion lookdir = Quaternion.LookRotation(_sightRadius);
+            trans.rotation = Quaternion.Slerp(trans.rotation, lookdir, 2f * Time.deltaTime);
+
+            yield return null;
+        }
+
+        while (!_stareAtPlayer)
+        {   
+            yield return null;
+        }
+
+        StartCoroutine("StareAtPlayer");
+    }
+
     IEnumerator CheckStatus()
     {
-        while (currAIstate != AIstate.POSSESSED)
+        while (!_possessed)
         {
             // AI dies
             if (currHP <= 0)
@@ -154,10 +176,12 @@ public class AI : Stats
             yield return null;
         }
 
-        while (currAIstate == AIstate.POSSESSED)
+        while (_possessed)
         {
             yield return null;
         }
+
+        StartCoroutine("CheckStatus");
     }
 
     void FieldOfVisionDisplay(float fov, GameObject eyePos, float range)
@@ -187,7 +211,7 @@ public class AI : Stats
     //}
 
     // AI becomes possessed
-    public virtual void PossessAI() { }
+    public virtual void PossessAI(){}
 
     // AI becomes unpossesed
     public virtual void UnPossessAI() { }

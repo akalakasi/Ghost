@@ -1,420 +1,464 @@
 ﻿using UnityEngine;
 using System.Collections;
 
+public enum Thug_Behaviours { IDLE, TURN_LEFT, TURN_RIGHT, PATROL, SEARCH_FOR_PLAYER, CHASE_PLAYER, SHOOT, MELEE, DEAD }
+
+[System.Serializable]
+public struct ThugBehaviour
+{
+    [Space(5, order = 0)]
+    [Header("Choice Of Behaviour", order = 1)]
+    [Space(5, order = 2)]
+    public string name;
+    public Thug_Behaviours behaviour;
+    public float duration;
+
+    [Space(10, order = 0)]
+    [Header("Movement Path", order = 1)]
+    [Space(5, order = 2)]
+    public Transform targetDestination;
+}
+
 public class Thug : AI
 {
     [SerializeField] Weapon pistol;
-    [SerializeField] bool has_Gun;
-    [SerializeField] bool has_Knife;
+    [SerializeField] bool rangeWeapon;
+    [SerializeField] bool meleeWeapon;
+    [SerializeField] float rangeAttackDelay;
+    [SerializeField] float meleeAttackDelay;
 
-    bool _takeAction;
+    [Space(10, order = 0)]
+    [Header("Thug Behaviour", order = 1)]
+    [Space(5, order = 2)]
+    [SerializeField] Thug_Behaviours currState;
+    [SerializeField] ThugBehaviour[] normalBehaviour;
+    [SerializeField] ThugBehaviour[] alertBehaviour;
+    [SerializeField] ThugBehaviour[] attackBehaviour;
+    [SerializeField] bool randomizeBehaviour;
+
+    int _currBehaviour;
+    bool _onAlert;
+    bool _isAttacking;
 
     void Start ()
     {
         // Basic AI-setup
         Setup();
 
-        IdleBehaviour();
-        StartCoroutine(ExecuteState());        
-        //Invoke("RandomIdleState", Random.Range(1, 2));
+        // Activate behaviours
+        StartCoroutine("BehaviourPattern");
+        StartCoroutine("ExecuteStates");      
         InvokeRepeating("CheckForPlayer", 1, 1);
     }
     
     void CheckForPlayer()
     {
-        switch (_spottedPlayer)
+        //if (!_spottedPlayer)
+        //{
+        //    if (_isOffensive)
+        //    {
+        //        _isOffensive = false;
+
+        //        _currBehaviour = 0;
+        //        navmeshagent.updateRotation = true;
+
+        //        // Change to Regular Behaviour
+        //        StopCoroutine("BehaviourPattern");
+        //        StartCoroutine("BehaviourPattern");
+        //    }
+        //}
+        if (_spottedPlayer)
         {
-            case true:
+            // Alert the NPC - once the player is seen
+            if (!_onAlert)
+            {
+                _onAlert = true;
 
-                // Alert the NPC - once the player is seen
-                if (currAIstate != AIstate.AGGRESSIVE)
-                {
-                    currAIstate = AIstate.AGGRESSIVE;
-                    navmeshagent.updateRotation = false;
-                    navmeshagent.ResetPath();                                     
+                _currBehaviour = 0;
+                navmeshagent.updateRotation = false;
+                navmeshagent.ResetPath();
 
-                    CancelInvoke("RandomAlertState");
-                    CancelInvoke("RandomIdleState");
-
-                    // Attack 
-                    //AttackAction();
-                }
-
-                break;
-
-            case false:
-
-                // If this Thug was originally Aggressive
-                if (currAIstate == AIstate.AGGRESSIVE)
-                {
-                    // he will continue to be Alert
-                    currAIstate = AIstate.ALERT;
-                    navmeshagent.updateRotation = true;
-
-                    CancelInvoke("Melee");
-                    CancelInvoke("Knife");
-                    CancelInvoke("Shoot");
-
-                    // AI stays on alert
-                    RandomAlertState();
-                }                 
-
-                break;
+                // Change to Offensive Behaviour
+                StopCoroutine("BehaviourPattern");
+                StartCoroutine("BehaviourPattern");
+            }
+            else if (_onAlert)
+            {
+                _onAlert = false;
+            }
         }
     }
 
-    IEnumerator ExecuteState()
+    IEnumerator BehaviourPattern()
     {
-        while (currAIstate == AIstate.IDLE)
+        ThugBehaviour[] _behaviourPattern;
+
+        if (!_spottedPlayer)
         {
-            // Random Idle-animations
-            // anim.SetInteger
+            if (!_onAlert)
+            {
+                _behaviourPattern = normalBehaviour;
+            }
+            else
+            {
+                _behaviourPattern = alertBehaviour;
+            }
+        }
+        else
+        {
+            _behaviourPattern = attackBehaviour;
+        }
+
+        if (_behaviourPattern.Length > 0)
+        {
+            // Behaviour follows according to the pattern
+            if (_currBehaviour < _behaviourPattern.Length)
+            {
+                currState = _behaviourPattern[_currBehaviour].behaviour;
+            }
+            else
+            {
+                _currBehaviour = 0;
+                currState = _behaviourPattern[0].behaviour;
+            }
+
+            if (currState == Thug_Behaviours.PATROL)
+            {
+                _newPos = _behaviourPattern[_currBehaviour].targetDestination.position;
+            }
+
+            // How long does the Behaviour last?
+            yield return new WaitForSeconds(_behaviourPattern[_currBehaviour].duration);
+
+            if (!randomizeBehaviour)
+            {
+                if (_currBehaviour < _behaviourPattern.Length - 1)
+                {
+                    // Proceed to the next Behaviour
+                    _currBehaviour++;
+                }
+                else
+                {
+                    // Return back to the first Behaviour
+                    _currBehaviour = 0;
+                }
+            }
+            else
+            {
+                // Randomize the Behaviour based on behaviours set
+                _currBehaviour = Random.Range(0, _behaviourPattern.Length);
+            }
+
+            // Stop staring at the player
+            _stareAtPlayer = false;
+            _isAttacking = false;
+
+            // Start the next Behaviour
+            StartCoroutine(BehaviourPattern());
+        }
+    }
+
+    IEnumerator ExecuteStates()
+    {
+        while (currState == Thug_Behaviours.IDLE)
+        {
+            // Stop the navmeshagent from moving
+            if (navmeshagent.hasPath)
+            {
+                // Idle animation
+                anim.SetBool("Walk", false);
+                navmeshagent.ResetPath();
+            }
 
             yield return null;
         }
-        
-        while (currAIstate == AIstate.TURNLEFT)
+
+        while (currState == Thug_Behaviours.TURN_LEFT)
         {
-            // Rotate Left or Look Left            
+            if (navmeshagent.hasPath)
+            {
+                // Stop the AI from moving
+                navmeshagent.updateRotation = false;
+                navmeshagent.ResetPath();
+                anim.SetBool("Walk", false);
+            }
+
             trans.Rotate(-Vector3.up * 20 * Time.deltaTime);
 
             yield return null;
         }
 
-        while (currAIstate == AIstate.TURNRIGHT)
+        while (currState == Thug_Behaviours.TURN_RIGHT)
         {
-            // Rotate Right or Look Right
+            if (navmeshagent.hasPath)
+            {
+                // Stop the AI from moving
+                navmeshagent.updateRotation = false;
+                navmeshagent.ResetPath();
+                anim.SetBool("Walk", false);
+            }
+
             trans.Rotate(Vector3.up * 20 * Time.deltaTime);
 
             yield return null;
         }
 
-        while (currAIstate == AIstate.WALK)
+        while (currState == Thug_Behaviours.PATROL)
         {
+            navmeshagent.speed = 1;
+            navmeshagent.SetDestination(_newPos);
+            navmeshagent.updateRotation = true;
+
             // Walking animation
+            anim.SetBool("Walk", true);
+
+            // Stop the AI once it has reached its destination
+            if (Vector3.Distance(_newPos, trans.position) < 0.2f)
+            {
+                if (navmeshagent.hasPath)
+                {
+                    navmeshagent.ResetPath();
+                    anim.SetBool("Walk", false);
+                }
+
+                currState = Thug_Behaviours.IDLE;
+            }
 
             yield return null;
         }
 
-        while (currAIstate == AIstate.AGGRESSIVE)
+        // Search for the player
+        while (currState == Thug_Behaviours.SEARCH_FOR_PLAYER)
         {
-            // Stare at player            
-            _sightRadius.y = 0;
-            Quaternion lookdir = Quaternion.LookRotation(_sightRadius);
-            trans.rotation = Quaternion.Slerp(trans.rotation, lookdir, 2f * Time.deltaTime);
-
-            if (_distance < 50)
+            // keep searching until AI spots the player
+            if (!_spottedPlayer)
             {
-                // If player is within range -
-                // Shoot at player
-                if (!_takeAction)
+                // Find a spot around the area
+                _newPos = trans.position + Random.insideUnitSphere * 30;
+
+                // If a walkable spot is found
+                if (NavMesh.SamplePosition(_newPos, out _hit, 50, NavMesh.AllAreas))
                 {
-                    _takeAction = true;
-
-                    // Stop & Fire
-                    anim.SetBool("Walk", false);
-                    navmeshagent.ResetPath();
-
-                    if (has_Gun)
+                    if (navmeshagent.enabled)
                     {
-                        pistol.Fire();
+                        // walk towards that spot
+                        navmeshagent.speed = 3;
+                        navmeshagent.SetDestination(_hit.position);
+                        navmeshagent.updateRotation = true;
+
+                        // Walking animation
+                        anim.SetBool("Walk", true);
+                    }
+                }
+
+                // Stop the AI once it has reached its destination
+                if (Vector3.Distance(_newPos, trans.position) < 0.2f)
+                {
+                    if (navmeshagent.hasPath)
+                    {
+                        navmeshagent.ResetPath();
+                        anim.SetBool("Walk", false);
                     }
 
-                    // Shoot again after a while
-                    Invoke("ResetAction", Random.Range(2, 3));
+                    currState = Thug_Behaviours.IDLE;
+                }
+            }
+
+            yield return null;
+        }
+
+        // Chase after the player
+        while (currState == Thug_Behaviours.CHASE_PLAYER)
+        {
+            if (navmeshagent.enabled)
+            {
+                // Run towards the player
+                navmeshagent.speed = 3;
+                navmeshagent.SetDestination(player.transform.position);
+                navmeshagent.updateRotation = true;
+
+                // Walking animation
+                anim.SetBool("Walk", true);
+            }
+
+            // Stop the AI once it has reached its destination - only when it has spotted the player
+            if (_spottedPlayer)
+            {
+                _stareAtPlayer = true;
+
+                // Using a range weapon
+                if (rangeWeapon)
+                {
+                    if (Vector3.Distance(_newPos, trans.position) < 20)
+                    {
+                        if (navmeshagent.hasPath)
+                        {
+                            navmeshagent.ResetPath();
+                            anim.SetBool("Walk", false);
+                        }
+
+                        currState = Thug_Behaviours.IDLE;
+                    }
+                }
+                // Using a melee weapon
+                else if (meleeWeapon)
+                {
+                    if (Vector3.Distance(_newPos, trans.position) < 4)
+                    {
+                        if (navmeshagent.hasPath)
+                        {
+                            navmeshagent.ResetPath();
+                            anim.SetBool("Walk", false);
+                        }
+
+                        currState = Thug_Behaviours.IDLE;
+                    }
+                }
+            }
+
+            yield return null;
+        }
+
+        // Melee the player
+        while (currState == Thug_Behaviours.MELEE)
+        {
+            // Stop AI from moving
+            anim.SetBool("Walk", false);
+            navmeshagent.ResetPath();
+
+            // Within Aim
+            if (Vector3.Angle(trans.forward, _sightRadius) < 5)
+            {
+                // Melee Attack
+                if (!_isAttacking)
+                {
+                    _isAttacking = true;
+
+                    // Stop staring at the player
+                    _stareAtPlayer = false;
+
+                    // Melee Attack
+                    Melee();
                 }
             }
             else
             {
-                // If the player is not within range -
-                // Chase after the player
-                if (!_takeAction)
+                if (!_isAttacking)
                 {
-                    _takeAction = true;
-                    _newPos = player.transform.position + Random.insideUnitSphere * 5;
-
-                    // If a walkable spot is found
-                    if (NavMesh.SamplePosition(_newPos, out _hit, 50, NavMesh.AllAreas))
-                    {
-                        // then walk towards that spot
-                        navmeshagent.SetDestination(_hit.position);
-                        anim.SetBool("Walk", true);
-                    }
-
-                    // Stop-and-Move every few secs
-                    Invoke("ResetAction", Random.Range(2, 3));
+                    // Stare at player to aim
+                    _stareAtPlayer = true;
                 }
             }
 
             yield return null;
         }
 
-        // Restart coroutine
-        StartCoroutine(ExecuteState());
-    }
-
-    void IdleBehaviour()
-    {
-        //Idle_Behaviours
-    }
-
-    void RandomIdleState()
-    {
-        float rndAction = Random.value;
-        float minDelay = 1;
-        float maxDelay = 2;
-
-        if (rndAction > 0.75f)
+        // Shoot at playera
+        while (currState == Thug_Behaviours.SHOOT)
         {
-            // continue to IDLE (play idle-animations here)
+            // Stop AI from moving
             anim.SetBool("Walk", false);
-            if (navmeshagent.enabled)
+            navmeshagent.ResetPath();
+
+            // Within Aim
+            if (Vector3.Angle(trans.forward, _sightRadius) < 5)
             {
+                // Within distance
+                if (_distance < 50)
+                {                    
+                    // Fire pistol
+                    if (!_isAttacking)
+                    {
+                        _isAttacking = true;
+
+                        // Stop staring to aim
+                        _stareAtPlayer = false;                        
+
+                        // Fire after a delay
+                        Invoke("Fire", rangeAttackDelay);                        
+                    }                    
+                }
+            }
+            else
+            {
+                if (!_isAttacking)
+                {
+                    // Stare at player to aim
+                    _stareAtPlayer = true;
+                }
+            }
+
+            yield return null;
+        }
+
+        while (currState == Thug_Behaviours.DEAD)
+        {
+            // Stop AI behaviour
+            StopCoroutine("BehaviourPattern");
+
+            // Stop the agent from moving
+            if (navmeshagent.hasPath)
+            {
+                anim.SetBool("Walk", false);
                 navmeshagent.ResetPath();
             }
-            currAIstate = AIstate.IDLE;
-        }
-        else if (rndAction < 0.25f)
-        {
-            _newPos = trans.position + Random.insideUnitSphere * 5;
 
-            // If a walkable spot is found
-            if (NavMesh.SamplePosition(_newPos, out _hit, 50, NavMesh.AllAreas))
-            {
-                // walk towards that spot
-                if (navmeshagent.enabled)
-                {
-                    navmeshagent.SetDestination(_hit.position);
-                    navmeshagent.updateRotation = true;
-                    anim.SetBool("Walk", true);
-                }
-                
-                currAIstate = AIstate.WALK;
-            }
-        }
-        else if (rndAction >= 0.25f && rndAction < 0.5f)
-        {
-            // NPC will 'Look right' / 'Turn right'
-            navmeshagent.updateRotation = false;
-            anim.SetBool("Walk", false);
-            navmeshagent.ResetPath();
-            currAIstate = AIstate.TURNRIGHT;
+            // Death animation
+            //anim.SetTrigger("Death");  
 
-            minDelay = 0.5f;
-            maxDelay = 1.5f;
-        }
-        else if (rndAction <= 0.75f && rndAction >= 0.5f)
-        {
-            // NPC will 'Look left' / 'Turn left'
-            navmeshagent.updateRotation = false;
-            anim.SetBool("Walk", false);
-            navmeshagent.ResetPath();
-            currAIstate = AIstate.TURNLEFT;
-
-            minDelay = 0.5f;
-            maxDelay = 1.5f;
+            yield break;          
         }
 
-        // Invoke a new random behaviour
-        Invoke("RandomIdleState", Random.Range(minDelay, maxDelay));
-    }
-
-    void RandomAlertState()
-    {
-        float rndAction = Random.value;
-        float minDelay = 1;
-        float maxDelay = 2;
-
-        if (rndAction > 0.75f)
-        {
-            // continue to IDLE (play idle-animations here)
-            anim.SetBool("Walk", false);
-            navmeshagent.ResetPath();
-            currAIstate = AIstate.IDLE;
-        }
-        else if (rndAction < 0.25f)
-        {       
-            _newPos = trans.position + Random.insideUnitSphere * 5;
-
-            // If a walkable spot is found
-            if (NavMesh.SamplePosition(_newPos, out _hit, 50, NavMesh.AllAreas))
-            {
-                // walk towards that spot
-                navmeshagent.SetDestination(_hit.position);
-                anim.SetBool("Walk", true);
-
-                navmeshagent.updateRotation = true;
-                currAIstate = AIstate.WALK;
-            }
-        }
-        else if (rndAction >= 0.25f && rndAction < 0.5f)
-        {
-            // NPC will 'Look right' / 'Turn right'
-            navmeshagent.updateRotation = false;
-            anim.SetBool("Walk", false);
-            navmeshagent.ResetPath();
-            currAIstate = AIstate.TURNRIGHT;
-
-            minDelay = 0.5f;
-            maxDelay = 1.5f;
-        }
-        else if (rndAction <= 0.75f && rndAction >= 0.5f)
-        {
-            // NPC will 'Look left' / 'Turn left'
-            navmeshagent.updateRotation = false;
-            anim.SetBool("Walk", false);
-            navmeshagent.ResetPath();
-            currAIstate = AIstate.TURNLEFT;
-
-            minDelay = 0.5f;
-            maxDelay = 1.5f;
-        }
-
-        // Invoke a new random behaviour
-        Invoke("RandomAlertState", Random.Range(minDelay, maxDelay));
-    }
-
-    void ResetAction()
-    {
-        _takeAction = false;
-    }
-
-    void AttackAction()
-    {
-        if (has_Gun)
-        {
-            // NPC has gun
-            Shoot();
-        }
-        else if (has_Knife)
-        {
-            // NPC has knife
-            Knife();
-        }
-        else
-        {
-            // NPC has no weapons
-            Melee();
-        }
+        StartCoroutine("ExecuteStates");
     }
 
     void Melee()
     {
-        if (_distance < 6)
-        {
-            // Punch
-            anim.SetBool("Walk", false);
-            navmeshagent.ResetPath();
+        currState = Thug_Behaviours.MELEE;
 
-            // Punch again after a while
-            Invoke("Melee", Random.Range(1, 2));
-
-            return;
-        }
-        else
-        {
-            // Move towards the player
-            _newPos = player.transform.position + Random.insideUnitSphere * 3;
-
-            // If a walkable spot is found
-            if (NavMesh.SamplePosition(_newPos, out _hit, 50, NavMesh.AllAreas))
-            {
-                // then walk towards that spot
-                navmeshagent.SetDestination(_hit.position);
-                anim.SetBool("Walk", true);
-            }
-
-            Invoke("Melee", 3);
-        }
+        // Melee attack code
+        // anim.SetTrigger("Melee");
     }
 
-    void Shoot()
+    void Fire()
     {
-        if (_distance < 50)
-        {
-            // If player is within range -
-            // Shoot at player
-            anim.SetBool("Walk", false);
-            navmeshagent.ResetPath();
-            pistol.Fire();
+        currState = Thug_Behaviours.IDLE;
 
-            // Shoot again after a while
-            Invoke("Shoot", Random.Range(2, 3));
+        pistol.Fire();
 
-            return;
-        }
-        else
-        {
-            // If the player is not within range -
-            // Chase after the player
-            _newPos = player.transform.position + Random.insideUnitSphere * 5;
-
-            // If a walkable spot is found
-            if (NavMesh.SamplePosition(_newPos, out _hit, 50, NavMesh.AllAreas))
-            {
-                // then walk towards that spot
-                navmeshagent.SetDestination(_hit.position);
-                anim.SetBool("Walk", true);
-            }
-
-            Invoke("Shoot", 3);
-        }
-    }
-
-    void Knife()
-    {
-        if (_distance < 6)
-        {
-            // Knife the player
-            navmeshagent.ResetPath();
-            anim.SetBool("Walk", false);
-
-            // Knife again
-            Invoke("Knife", Random.Range(1, 3));
-
-            return;
-        }
-        else
-        {
-            // Move towards the player
-            _newPos = player.transform.position + Random.insideUnitSphere * 3;
-
-            // If a walkable spot is found
-            if (NavMesh.SamplePosition(_newPos, out _hit, 50, NavMesh.AllAreas))
-            {
-                // walk towards that spot
-                navmeshagent.SetDestination(_hit.position);
-                anim.SetBool("Walk", true);
-            }
-
-            Invoke("Knife", 3);
-        }
+        // Fire - animation
+        // anim.SetTrigger("Fire");
+        // anim.SetTrigger("Reload");
     }
 
     public override void PossessAI()
     {
-        navmeshagent.ResetPath();
-        navmeshagent.enabled = false;
+        if (!_possessed)
+        {
+            _possessed = true;
+            navmeshagent.ResetPath();
+            navmeshagent.enabled = false;
 
-        // Change AI state to Possessed
-        currAIstate = AIstate.POSSESSED;
+            // Stop all actions
+            StopCoroutine("ExecuteStates");
+            StopCoroutine("BehaviourPattern");
 
-        CancelInvoke("CheckForPlayer");
-        CancelInvoke("Melee");
-        CancelInvoke("Knife");
-        CancelInvoke("Shoot");
-        CancelInvoke("RandomAlertState");
-        CancelInvoke("RandomIdleState");
+            CancelInvoke("CheckForPlayer");
+        }
     }
 
     public override void UnPossessAI()
     {
-        navmeshagent.enabled = true;
+        if (_possessed)
+        {
+            _possessed = false;
+            navmeshagent.enabled = true;
 
-        // Change AI state to Idle
-        currAIstate = AIstate.IDLE;
+            // Continue actions
+            StartCoroutine("BehaviourPattern");
+            StartCoroutine("ExecuteStates");
 
-        InvokeRepeating("CheckForPlayer", 3, 1);
-        Invoke("RandomIdleState", 3);
+            InvokeRepeating("CheckForPlayer", 3, 1);
+        }
     }
 }

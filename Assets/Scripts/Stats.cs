@@ -3,6 +3,8 @@
 // ALL DAMAGEABLE OBJECTS will have this base-script
 public class Stats : MonoBehaviour
 {
+    [Header("Stats", order = 1)]
+    [Space(5, order = 2)]
     public float maxHP;
     public float currHP;
 
