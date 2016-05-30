@@ -12,6 +12,8 @@ public class PlayerScript : Stats
     public WeaponBag weapons;
     public Transform weaponBagPos;
 
+    [SerializeField] LayerMask noiseAffectLayer;
+
     public enum PossesState
     {
         NOT_POSSESSING,
@@ -31,6 +33,7 @@ public class PlayerScript : Stats
 
     IEnumerator CheckStatus()
     {
+        // while the player is not dead
         while (currentPState != PossesState.DEAD)
         {
             if (weapons != null)
@@ -99,51 +102,61 @@ public class PlayerScript : Stats
 
                 if (_ai != null)
                 {
-                    // Make sure AI isn't dead
-                    if (_ai.currAIstate != AI.AIstate.DEAD)
+                    // Check if it is the current AI you're possessing
+                    if (possessedBody != _ai.gameObject)
                     {
-                        // Check if it is the current AI you're possessing
-                        if (possessedBody != _ai.gameObject)
-                        {
-                            // Leave your last possessed body and enter a new body
-                            if (possessedBody)
-                            {                                                                                        
-                                possessedBody.SetActive(true);
-                                possessedBody.transform.SetParent(null);
+                        // Leave your last possessed body and enter a new body
+                        if (possessedBody)
+                        {                                                                                        
+                            possessedBody.SetActive(true);
+                            possessedBody.transform.SetParent(null);
 
-                                // Give Back old weapons to previous body        
-                                AI _previousAI = possessedBody.GetComponent<AI>();
-                                weapons.transform.SetParent(_previousAI.weaponBagPos);
-                                weapons.transform.position = _previousAI.weaponBagPos.position;
-                                weapons.transform.rotation = weapons.transform.parent.rotation;
-                                _previousAI.UnPossessAI();
-                            }
-                            possessedBody = _ai.gameObject;
-
-                            // AI becomes possessed                
-                            _ai.PossessAI();
-
-                            // Player possesses AI
-                            currentPState = PossesState.POSSESSING;
-
-                            // Go to AI's position                        
-                            _trans.position = possessedBody.transform.position;
-                            _trans.rotation = possessedBody.transform.rotation;    
-                            _ai.transform.SetParent(_trans);
-                            _ai.gameObject.SetActive(false);                            
-
-                            // Acquire all of the AI's weapons   
-                            weapons = _ai.weapons;
-                            weapons.transform.SetParent(weaponBagPos);
-                            weapons.transform.position = weaponBagPos.position;
+                            // Give Back old weapons to previous body        
+                            AI _previousAI = possessedBody.GetComponent<AI>();
+                            weapons.transform.SetParent(_previousAI.weaponBagPos);
+                            weapons.transform.position = _previousAI.weaponBagPos.position;
                             weapons.transform.rotation = weapons.transform.parent.rotation;
-
-                            // Make sure that the AIs do not know you're the player
-                            tag = "Untagged";
+                            _previousAI.UnPossessAI();
                         }
+                        possessedBody = _ai.gameObject;
+
+                        // AI becomes possessed                
+                        _ai.PossessAI();
+
+                        // Player possesses AI
+                        currentPState = PossesState.POSSESSING;
+
+                        // Go to AI's position                        
+                        _trans.position = possessedBody.transform.position;
+                        _trans.rotation = possessedBody.transform.rotation;    
+                        _ai.transform.SetParent(_trans);
+                        _ai.gameObject.SetActive(false);                            
+
+                        // Acquire all of the AI's weapons   
+                        weapons = _ai.weapons;
+                        weapons.transform.SetParent(weaponBagPos);
+                        weapons.transform.position = weaponBagPos.position;
+                        weapons.transform.rotation = weapons.transform.parent.rotation;
+
+                        // Make sure that the AIs do not know you're the player
+                        tag = "Untagged";
                     }
                 }
             }                                     
         }
-    }	   
+    }
+
+    // Noise can attract AIs' attention in the area
+    void CreateNoise(Transform _noisePos, float _noiseRadius)
+    {
+        Collider[] noiseSphere = Physics.OverlapSphere(_noisePos.position, _noiseRadius, noiseAffectLayer);
+
+        if (noiseSphere.Length > 0)
+        {
+            foreach (Collider ai in noiseSphere)
+            {
+                ai.GetComponent<AI>().heardNoise = true;
+            }
+        }
+    }
 }

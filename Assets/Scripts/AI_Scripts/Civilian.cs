@@ -27,10 +27,12 @@ public class Civilian : AI
     [SerializeField] Civilian_Behaviours currState;
     [SerializeField] CivilianBehaviour[] normalBehaviour;
     [SerializeField] CivilianBehaviour[] alertBehaviour;
+    [SerializeField] CivilianBehaviour[] frightenedBehaviour;
     [SerializeField] bool randomizeBehaviour;
 
+    CivilianBehaviour[] _currBehaviourPattern;
     int _currBehaviour;
-    bool _onAlert;
+    bool _onFrightened;
     bool _runFromPlayer;
 
 	void Start ()
@@ -46,33 +48,44 @@ public class Civilian : AI
 
     void CheckForPlayer()
     {
-        //if (!_spottedPlayer)
-        //{
-        //    if (_isOffensive)
-        //    {
-        //        _isOffensive = false;
-
-        //        _currBehaviour = 0;
-        //        navmeshagent.updateRotation = true;
-
-        //        // Change to Regular Behaviour
-        //        StopCoroutine("BehaviourPattern");
-        //        StartCoroutine("BehaviourPattern");
-        //    }
-        //}
-        if (_spottedPlayer)
+        // Cannot see player
+        if (!_spottedPlayer)
         {
-            // Alert the NPC - once the player is seen
-            if (!_onAlert)
+            // If the AI was on the Offensive, it will become Alert
+            // instead of returning to Normal behaviour
+            if (_onFrightened)
             {
-                _onAlert = true;
+                _onFrightened = false;
+                navmeshagent.updateRotation = true;
+
+                // Stop the current Behaviour Pattern
+                StopCoroutine("BehaviourPattern");
 
                 _currBehaviour = 0;
+                _currBehaviourPattern = alertBehaviour;
+
+                // Restart Behaviour Pattern             
+                StartCoroutine("BehaviourPattern");
+            }
+        }
+        // Spotted player
+        else if (_spottedPlayer)
+        {
+            // Alert the NPC - once the player is seen
+            if (!_onFrightened)
+            {
+                _onFrightened = true;
+
+                // Stop the current Behaviour Pattern
+                StopCoroutine("BehaviourPattern");
+
                 navmeshagent.updateRotation = false;
                 navmeshagent.ResetPath();
 
+                _currBehaviour = 0;
+                _currBehaviourPattern = frightenedBehaviour;
+
                 // Change to Offensive Behaviour
-                StopCoroutine("BehaviourPattern");
                 StartCoroutine("BehaviourPattern");
             }
         }
@@ -80,41 +93,30 @@ public class Civilian : AI
 
     IEnumerator BehaviourPattern()
     {
-        CivilianBehaviour[] _behaviourPattern;
-
-        if (!_onAlert)
-        {
-            _behaviourPattern = normalBehaviour;
-        }
-        else
-        {
-            _behaviourPattern = alertBehaviour;
-        }
-
-        if (_behaviourPattern.Length > 0)
+        if (_currBehaviourPattern.Length > 0)
         {
             // Behaviour follows according to the pattern
-            if (_currBehaviour < _behaviourPattern.Length)
+            if (_currBehaviour < _currBehaviourPattern.Length)
             {
-                currState = _behaviourPattern[_currBehaviour].behaviour;
+                currState = _currBehaviourPattern[_currBehaviour].behaviour;
             }
             else
             {
                 _currBehaviour = 0;
-                currState = _behaviourPattern[0].behaviour;
+                currState = _currBehaviourPattern[0].behaviour;
             }
 
             if (currState == Civilian_Behaviours.WALK)
             {
-                _newPos = _behaviourPattern[_currBehaviour].targetDestination.position;
+                _newPos = _currBehaviourPattern[_currBehaviour].targetDestination.position;
             }
 
             // How long does the Behaviour last?
-            yield return new WaitForSeconds(_behaviourPattern[_currBehaviour].duration);
+            yield return new WaitForSeconds(_currBehaviourPattern[_currBehaviour].duration);
 
             if (!randomizeBehaviour)
             {
-                if (_currBehaviour < _behaviourPattern.Length - 1)
+                if (_currBehaviour < _currBehaviourPattern.Length - 1)
                 {
                     // Proceed to the next Behaviour
                     _currBehaviour++;
@@ -128,7 +130,7 @@ public class Civilian : AI
             else
             {
                 // Randomize the Behaviour based on behaviours set
-                _currBehaviour = Random.Range(0, _behaviourPattern.Length);
+                _currBehaviour = Random.Range(0, _currBehaviourPattern.Length);
             }
 
             // Stop staring at the player

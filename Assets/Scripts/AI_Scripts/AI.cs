@@ -23,33 +23,19 @@ public class AI : Stats
     [SerializeField] float fieldOfVision;
     [SerializeField] float rangeOfVision;
 
-    public enum AIstate
-    {
-        IDLE,
-        TURNLEFT,
-        TURNRIGHT,
-        WALK,
-        AGGRESSIVE,
-        ALERT,
-        POSSESSED,
-        DEAD,
-    }
-
-    [Space(10, order = 0)]
-    [Header("Behaviours", order = 1)]
-    [Space(5, order = 2)]
-    public AIstate currAIstate;
-
     [Space(10, order = 0)]
     [Header("Weapons", order = 1)]
     [Space(5, order = 2)]
     public WeaponBag weapons;
     public Transform weaponBagPos;
 
-    protected bool _stareAtPlayer;
-    protected bool _possessed;
+    protected bool _stareAtPlayer;    
     protected bool _spottedPlayer;
+    protected bool _executedState;
+    protected bool _possessed;
     protected bool _dead;
+
+    public bool heardNoise;
 
     // Use this for initialization
     protected void Setup()
@@ -159,29 +145,19 @@ public class AI : Stats
 
     IEnumerator CheckStatus()
     {
-        while (!_possessed)
-        {
-            // AI dies
-            if (currHP <= 0)
-            {
-                currHP = 0;
-
-                if (currAIstate != AIstate.DEAD)
-                {
-                    currAIstate = AIstate.DEAD;
-                    Invoke("Death", 1.5f);
-                }
-            }
-
-            yield return null;
-        }
-
-        while (_possessed)
+        // AI still alive
+        while (currHP > 0)
         {
             yield return null;
         }
 
-        StartCoroutine("CheckStatus");
+        // AI dies
+        while (currHP <= 0)
+        {
+            Invoke("Death", 1.5f);
+
+            yield break;
+        }
     }
 
     void FieldOfVisionDisplay(float fov, GameObject eyePos, float range)
