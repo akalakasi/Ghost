@@ -14,7 +14,7 @@ public class Weapon_UI : MonoBehaviour
     {        
         if (player != null)
         {
-            if (player.weapons != null)
+            if (player.weapons.currentWeapon != null)
             {
                 // Show Weapon_UI
                 weaponCanvasGroup.alpha = 1;

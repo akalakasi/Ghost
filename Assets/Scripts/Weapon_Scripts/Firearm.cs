@@ -8,11 +8,22 @@ public class Firearm : Weapon
     [SerializeField] AudioClip fireClip;
     [SerializeField] AudioClip reloadClip;
 
+    [Space(10, order = 0)]
+    [Header("Ammo Usage", order = 1)]
+    [Space(5, order = 2)]
     public int Current_Ammo;
     public int MaxAmmo_perRound;
     public int TotalAmmo;
+
+    [Space(10, order = 0)]
+    [Header("Firearm Stats", order = 1)]
+    [Space(5, order = 2)]
     public float ReloadingTime;
     public float FiringRange;
+    public float bulletSpeed;
+    public float spreadMagnitude;
+
+    [SerializeField] GameObject noiseSource;
 
     public override void Reload()
     {
@@ -53,6 +64,12 @@ public class Firearm : Weapon
     protected void FireAudio()
     {
         _audio.PlayOneShot(fireClip);
+
+        // Generate noise
+        //NoiseSource noise = new NoiseSource();
+        //noise.Noise(_trans, noiseLevel);
+        GameObject noise = (GameObject)Instantiate(noiseSource, _trans.position, Quaternion.identity);
+        noise.GetComponent<NoiseSource>().Noise(noiseLevel);
     }
 
     protected void ReloadAudio()

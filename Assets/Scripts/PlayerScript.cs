@@ -12,8 +12,6 @@ public class PlayerScript : Stats
     public WeaponBag weapons;
     public Transform weaponBagPos;
 
-    [SerializeField] LayerMask noiseAffectLayer;
-
     public enum PossesState
     {
         NOT_POSSESSING,
@@ -26,7 +24,11 @@ public class PlayerScript : Stats
     void Start ()
     {
         _trans = transform;
-        _anim = GetComponentInChildren<Animation>();        
+        _anim = GetComponentInChildren<Animation>();
+
+        // Disable Cursor
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
 
         StartCoroutine("CheckStatus");
     }
@@ -36,42 +38,50 @@ public class PlayerScript : Stats
         // while the player is not dead
         while (currentPState != PossesState.DEAD)
         {
-            if (weapons != null)
+            // Make sure player doesn't gain control even while the game is paused. (If you can find another way to script this part, it will be great.)
+            if (!PauseMenu.pause)
             {
-                if (Input.GetMouseButtonDown(0))
+                if (weapons != null)
                 {
-                    _anim.Play("fire");
-                    weapons.Attack();
+                    if (Input.GetMouseButtonDown(0))
+                    {                        
+                        if (weapons.Attack())
+                        {
+                            _anim.Play(weapons.WeaponAttackAnimation);
+                        }
+                    }
+
+                    if (Input.GetKeyDown(KeyCode.R))
+                    {
+                        // Reload Firearm
+                        if (weapons.Reload())
+                        {
+                            _anim.Play(weapons.WeaponReloadAnimation);
+                        }
+                    }
+
+                    // Switch Weapons
+                    if (Input.GetAxis("Mouse ScrollWheel") > 0)
+                    {
+                        weapons.SwitchWeapon(1);
+                    }
+                    else if (Input.GetAxis("Mouse ScrollWheel") < 0)
+                    {
+                        weapons.SwitchWeapon(-1);
+                    }
                 }
 
-                if (Input.GetKeyDown(KeyCode.R))
+                if (Input.GetKeyDown(KeyCode.E))
                 {
-                    // Reload Firearm
-                    _anim.Play("reloadfull");
-                    weapons.Reload();
+                    Possession();
                 }
 
-                // Switch Weapons
-                if (Input.GetAxis("Mouse ScrollWheel") > 0)
+                // Dead
+                if (currHP <= 0)
                 {
-                    weapons.SwitchWeapon(1);
+                    currHP = 0;
+                    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
                 }
-                else if (Input.GetAxis("Mouse ScrollWheel") < 0)
-                {
-                    weapons.SwitchWeapon(-1);
-                }
-            }
-
-            if (Input.GetKeyDown(KeyCode.E))
-            {
-                Possession();
-            }            
-
-            // Dead
-            if (currHP <= 0)
-            {
-                currHP = 0;
-                SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
             }
 
             yield return null;
@@ -143,20 +153,6 @@ public class PlayerScript : Stats
                     }
                 }
             }                                     
-        }
-    }
-
-    // Noise can attract AIs' attention in the area
-    void CreateNoise(Transform _noisePos, float _noiseRadius)
-    {
-        Collider[] noiseSphere = Physics.OverlapSphere(_noisePos.position, _noiseRadius, noiseAffectLayer);
-
-        if (noiseSphere.Length > 0)
-        {
-            foreach (Collider ai in noiseSphere)
-            {
-                ai.GetComponent<AI>().heardNoise = true;
-            }
         }
     }
 }

@@ -49,25 +49,65 @@ public class WeaponBag : MonoBehaviour
         }
     }
 
-    public void Attack()
+    public bool Attack()
     {
-        if (currentWeapon.IsFireArm)
+        if (currentWeapon != null)
         {
-            // Shoot
-            currentWeapon.Fire();
+            if (currentWeapon.IsFireArm)
+            {
+                // Shoot
+                currentWeapon.Fire();
+            }
+            else
+            {
+                // Melee
+                currentWeapon.Attack();
+            }
+
+            return true;
         }
         else
         {
-            // Melee
-            currentWeapon.Attack();
+            return false;
         }
     }
 
-    public void Reload()
+    public bool Reload()
     {
-        if (currentWeapon.IsFireArm)
+        if (currentWeapon != null)
         {
-            currentWeapon.Reload();
+            if (currentWeapon.IsFireArm)
+            {
+                currentWeapon.Reload();
+
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    // Returns the animation name of the weapon-attack
+    public string WeaponAttackAnimation
+    {
+        get
+        {
+            return currentWeapon.attackName;
+        }
+    }
+
+    // Returns the animation name of the weapon-reload
+    public string WeaponReloadAnimation
+    {
+        get
+        {
+            return currentWeapon.reloadName;
         }
     }
 }

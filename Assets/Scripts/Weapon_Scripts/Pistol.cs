@@ -1,10 +1,7 @@
 ﻿using UnityEngine;
 
 public class Pistol : Firearm
-{
-    public float bulletSpeed;
-    public float spreadMagnitude;
-
+{    
     void Start()
     {
         _trans = transform;

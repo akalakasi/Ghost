@@ -41,6 +41,8 @@ public class Thug : AI
     bool _onOffensive;
     bool _isAttacking;
 
+    [SerializeField] AudioClip deathClip;
+
     void Start ()
     {
         // Basic AI-setup
@@ -63,7 +65,8 @@ public class Thug : AI
             // instead of returning to Normal behaviour
             if (_onOffensive)
             {
-                _onOffensive = false;             
+                _onOffensive = false;
+                _startled = false;
                 navmeshagent.updateRotation = true;
 
                 // Stop the current Behaviour Pattern
@@ -83,10 +86,13 @@ public class Thug : AI
             if (!_onOffensive)
             {
                 _onOffensive = true;
+                _startled = true;
 
                 // Stop the current Behaviour Pattern
                 StopCoroutine("BehaviourPattern");
+                CancelInvoke("ContinueActions");
 
+                navmeshagent.enabled = true;
                 navmeshagent.updateRotation = false;
                 navmeshagent.ResetPath();
 
@@ -104,25 +110,29 @@ public class Thug : AI
         if (_currBehaviourPattern.Length > 0)
         {
             // Behaviour follows according to the pattern
-            if (_currBehaviour < _currBehaviourPattern.Length)
+            if (currState != Thug_Behaviours.CHASE_PLAYER)
             {
-                currState = _currBehaviourPattern[_currBehaviour].behaviour;
-            }
-            else
-            {
-                // In case the current Behaviour doesn't follow the Behaviour pattern
-                // reset to 0
-                _currBehaviour = 0;
-                currState = _currBehaviourPattern[0].behaviour;
+                if (_currBehaviour < _currBehaviourPattern.Length)
+                {
+                    currState = _currBehaviourPattern[_currBehaviour].behaviour;
+                }
+                else
+                {
+                    // In case the current Behaviour doesn't follow the Behaviour pattern
+                    // reset to 0
+                    _currBehaviour = 0;
+                    currState = _currBehaviourPattern[0].behaviour;
+                }
             }
 
             if (currState == Thug_Behaviours.PATROL)
             {
+                // Assign the destination for the AI if it is patrolling
                 _newPos = _currBehaviourPattern[_currBehaviour].targetDestination.position;
             }
 
             // Reset booleans
-            _stareAtPlayer = false;
+            _target = null;
             _isAttacking = false;
             _executedState = false;
 
@@ -149,7 +159,7 @@ public class Thug : AI
             }            
 
             // Start the next Behaviour
-            StartCoroutine(BehaviourPattern());
+            StartCoroutine("BehaviourPattern");
         }
     }
 
@@ -158,11 +168,16 @@ public class Thug : AI
         while (currState == Thug_Behaviours.IDLE)
         {
             // Stop the navmeshagent from moving
-            if (navmeshagent.hasPath)
+            if (!_executedState)
             {
+                _executedState = true;
+
                 // Idle animation
-                anim.SetBool("Walk", false);
-                navmeshagent.ResetPath();
+                if (navmeshagent.hasPath)
+                {
+                    navmeshagent.ResetPath();
+                    anim.SetBool("Walk", false);
+                }
             }
 
             yield return null;
@@ -170,10 +185,11 @@ public class Thug : AI
 
         while (currState == Thug_Behaviours.TURN_LEFT)
         {
-            if (navmeshagent.hasPath)
+            if (!_executedState)
             {
-                // Stop the AI from moving
-                navmeshagent.updateRotation = false;
+                _executedState = true;
+
+                // Idle animation
                 navmeshagent.ResetPath();
                 anim.SetBool("Walk", false);
             }
@@ -185,10 +201,11 @@ public class Thug : AI
 
         while (currState == Thug_Behaviours.TURN_RIGHT)
         {
-            if (navmeshagent.hasPath)
+            if (!_executedState)
             {
-                // Stop the AI from moving
-                navmeshagent.updateRotation = false;
+                _executedState = true;
+
+                // Idle animation
                 navmeshagent.ResetPath();
                 anim.SetBool("Walk", false);
             }
@@ -213,18 +230,8 @@ public class Thug : AI
                 anim.SetBool("Walk", true);
             }
 
-            // Stop the AI once it has reached its destination
-            if (Vector3.Distance(_newPos, trans.position) < 0.2f)
-            {
-                if (navmeshagent.hasPath)
-                {
-                    navmeshagent.ResetPath();
-                    anim.SetBool("Walk", false);
-                }
-
-                // Return back to IDLE
-                currState = Thug_Behaviours.IDLE;
-            }
+            // Checks whether AI has reached its destination
+            CheckDestination(0);
 
             yield return null;
         }
@@ -259,18 +266,8 @@ public class Thug : AI
                 }
                 else if (_executedState) // After finding (or not) a destination
                 {
-                    // Stop the AI once it has reached its destination
-                    if (Vector3.Distance(_newPos, trans.position) < 0.2f)
-                    {
-                        if (navmeshagent.hasPath)
-                        {
-                            navmeshagent.ResetPath();
-                            anim.SetBool("Walk", false);
-                        }
-
-                        // Return back to idle
-                        currState = Thug_Behaviours.IDLE;
-                    }
+                    // Checks whether AI has reached its destination
+                    CheckDestination(0);                    
                 }
             }
 
@@ -289,47 +286,34 @@ public class Thug : AI
                 navmeshagent.SetDestination(player.transform.position);
                 navmeshagent.updateRotation = true;
 
-                // Walking animation
+                // Running animation
                 anim.SetBool("Walk", true);
             }
 
             // Stop the AI once it has reached its destination - only when it has spotted the player
             if (_spottedPlayer)
             {
-                _stareAtPlayer = true;
+                // Stare at the player
+                _target = player;
 
                 // Using a range weapon
                 if (rangeWeapon)
-                {
-                    // Range Distance
-                    if (Vector3.Distance(_newPos, trans.position) < 20)
+                {                   
+                    // Checks whether AI has reached its destination
+                    if (CheckDestination(30))
                     {
-                        // Stop running
-                        if (navmeshagent.hasPath)
-                        {
-                            navmeshagent.ResetPath();
-                            anim.SetBool("Walk", false);
-                        }
-
-                        // Return back to IDLE
-                        currState = Thug_Behaviours.IDLE;
+                        // Go to SHOOT state
+                        currState = Thug_Behaviours.SHOOT;
                     }
                 }
                 // Using a melee weapon
                 else if (meleeWeapon)
                 {
-                    // Melee Distance
-                    if (Vector3.Distance(_newPos, trans.position) < 4)
+                    // Checks whether AI has reached its destination
+                    if (CheckDestination(0))
                     {
-                        // Stop running
-                        if (navmeshagent.hasPath)
-                        {
-                            navmeshagent.ResetPath();
-                            anim.SetBool("Walk", false);
-                        }
-
-                        // Return back to Idle
-                        currState = Thug_Behaviours.IDLE;
+                        // Go to SHOOT state
+                        currState = Thug_Behaviours.SHOOT;
                     }
                 }
             }
@@ -349,8 +333,9 @@ public class Thug : AI
                 navmeshagent.ResetPath();
             }
 
+
             // Within Aim
-            if (Vector3.Angle(trans.forward, _sightRadius) < 5)
+            if (Vector3.Angle(trans.forward, _angleViewToPlayer) < 30)
             {
                 // Melee Attack
                 if (!_isAttacking)
@@ -358,8 +343,7 @@ public class Thug : AI
                     _isAttacking = true;
 
                     // Stop staring at the player
-                    _stareAtPlayer = false;
-
+                    _target = null;
                     // Melee Attack
                     Melee();
                 }
@@ -369,7 +353,7 @@ public class Thug : AI
                 if (!_isAttacking)
                 {
                     // Stare at player to aim
-                    _stareAtPlayer = true;
+                    _target = player;
                 }
             }
 
@@ -378,42 +362,48 @@ public class Thug : AI
 
         // Shoot at playera
         while (currState == Thug_Behaviours.SHOOT)
-        {
-            // Stop AI from moving
-            if (!_executedState)
+        {            
+            // Within distance
+            if (_distanceToPlayer < 50)
             {
-                _executedState = true;
+                // Stop AI from moving
+                if (!_executedState)
+                {
+                    _executedState = true;
 
-                anim.SetBool("Walk", false);
-                navmeshagent.ResetPath();
-            }
+                    // Make sure the AI stops moving to shoot
+                    anim.SetBool("Walk", false);
+                    navmeshagent.ResetPath();
+                }
 
-            // Within Aim
-            if (Vector3.Angle(trans.forward, _sightRadius) < 5)
-            {
-                // Within distance
-                if (_distance < 50)
-                {                    
+                // Within Aim
+                if (Vector3.Angle(trans.forward, _angleViewToPlayer) < 10)
+                {              
                     // Fire pistol
                     if (!_isAttacking)
                     {
                         _isAttacking = true;
 
-                        // Stop staring to aim
-                        _stareAtPlayer = false;                        
+                        // Stop staring to aim                   
+                        _target = null;
 
                         // Fire after a delay
-                        Invoke("Fire", rangeAttackDelay);                        
-                    }                    
+                        Invoke("Fire", rangeAttackDelay);
+                    }
+                }
+                else // Not within aim
+                {
+                    if (!_isAttacking)
+                    {
+                        // Stare at player to aim
+                        _target = player;
+                    }
                 }
             }
-            else // Not within aim
+            else if (_distanceToPlayer >= 50) // Outta distance
             {
-                if (!_isAttacking)
-                {
-                    // Stare at player to aim
-                    _stareAtPlayer = true;
-                }
+                // Chase after the player if they are not close enough
+                currState = Thug_Behaviours.CHASE_PLAYER;
             }
 
             yield return null;
@@ -421,19 +411,25 @@ public class Thug : AI
 
         while (currState == Thug_Behaviours.DEAD)
         {
+            // Stop staring at the target
+            _target = null;
+
             // Stop AI behaviour
             StopCoroutine("BehaviourPattern");
 
-            // Stop the agent from moving
-            if (navmeshagent.hasPath)
-            {
-                anim.SetBool("Walk", false);
-                navmeshagent.ResetPath();
-            }
+            // Stop moving
+            navmeshagent.ResetPath();
+            anim.SetBool("Walk", false);
 
             // Death animation
             //anim.SetTrigger("Death");  
 
+            // Death-voice
+            _audio.PlayOneShot(deathClip);
+
+            yield return new WaitForSeconds(3);
+
+            Destroy(gameObject);
             yield break;          
         }
 
@@ -458,35 +454,44 @@ public class Thug : AI
 
         currState = Thug_Behaviours.IDLE;
     }
+    
+    public override void HaltActions()
+    {
+        base.HaltActions();
+
+        StopCoroutine("BehaviourPattern");
+    }
+
+    public override void ContinueActions()
+    {
+        base.ContinueActions();
+
+        // Go to Idle State
+        currState = Thug_Behaviours.IDLE;
+
+        StartCoroutine("BehaviourPattern");
+    }
+
+    public override void HeardNoise(GameObject _noiseSource)
+    {
+        if (!_onOffensive)
+        {
+            base.HeardNoise(_noiseSource);
+        }
+    }
 
     public override void PossessAI()
     {
-        if (!_possessed)
-        {
-            _possessed = true;
-            navmeshagent.ResetPath();
-            navmeshagent.enabled = false;
-
-            // Stop all actions
-            StopCoroutine("ExecuteStates");
-            StopCoroutine("BehaviourPattern");
-
-            CancelInvoke("CheckForPlayer");
-        }
+        base.PossessAI();
     }
 
     public override void UnPossessAI()
     {
-        if (_possessed)
-        {
-            _possessed = false;
-            navmeshagent.enabled = true;
+        base.UnPossessAI();
+    }
 
-            // Continue actions
-            StartCoroutine("BehaviourPattern");
-            StartCoroutine("ExecuteStates");
-
-            InvokeRepeating("CheckForPlayer", 3, 1);
-        }
+    public override void Dead()
+    {
+        currState = Thug_Behaviours.DEAD;
     }
 }

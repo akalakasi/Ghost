@@ -6,7 +6,16 @@ public class Weapon : MonoBehaviour
     protected Transform _trans;
     protected AudioSource _audio;
 
-    public float weaponDamage;
+    [Header("Weapon Stats", order = 0)]
+    [Space(5, order = 1)]
+    [SerializeField] protected float weaponDamage;
+    [SerializeField] protected float noiseLevel;
+
+    [Space(10, order = 0)]
+    [Header("Weapon Animation", order = 1)]
+    [Space(5, order = 2)]
+    public string attackName;
+    public string reloadName;
 
     public virtual void Attack() { }
 

@@ -73,6 +73,7 @@
     <Compile Include="Assets\Scripts\AI_Scripts\Civilian.cs" />
     <Compile Include="Assets\Scripts\AI_Scripts\Thug.cs" />
     <Compile Include="Assets\Scripts\DestroySoundClip.cs" />
+    <Compile Include="Assets\Scripts\NoiseSource.cs" />
     <Compile Include="Assets\Scripts\PlayerScript.cs" />
     <Compile Include="Assets\Scripts\Stats.cs" />
     <Compile Include="Assets\Scripts\UI_Scripts\HP_UI.cs" />
